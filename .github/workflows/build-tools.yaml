@@ -58,16 +58,10 @@ jobs:
           BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d).tar.gz"
           TAG="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d)"
 
+          printf 'Pinned build tools bundle for FreeBSD %s.\n\n## Packages\n- podman\n- sysutils/podman-compose\n- jq / skopeo / buildah\n- trivy\n- python3 / devel/py-pyyaml\n- appjail\n- ocijail\n' \
+            "${{ env.FREEBSD_RELEASE }}" > /tmp/notes.md
+
           gh release create "$TAG" \
             --title "FreeBSD ${{ env.FREEBSD_RELEASE }} build tools $(date +%Y%m%d)" \
-            --notes "Pinned build tools bundle for FreeBSD ${{ env.FREEBSD_RELEASE }}.
-
-## Packages
-- podman
-- sysutils/podman-compose
-- jq / skopeo / buildah
-- trivy
-- python3 / devel/py-pyyaml
-- appjail
-- ocijail" \
+            --notes-file /tmp/notes.md \
             "$BUNDLE"
