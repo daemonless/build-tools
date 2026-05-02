@@ -1,0 +1,73 @@
+name: Build Tools Bundle
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 1 * *'  # Monthly on the 1st
+
+env:
+  FREEBSD_RELEASE: "15.0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build bundle in FreeBSD VM
+        uses: vmactions/freebsd-vm@v1.4.4
+        with:
+          release: ${{ env.FREEBSD_RELEASE }}
+          usesh: true
+          copyback: true
+          run: |
+            set -e
+
+            mkdir -p /tmp/packages
+
+            # Use latest repo for fetching
+            mkdir -p /etc/pkg
+            echo 'FreeBSD: { url: "http://pkg.FreeBSD.org/${ABI}/latest" }' > /etc/pkg/FreeBSD.conf
+            pkg update -f
+
+            # Fetch all packages with full dependency tree
+            pkg fetch --dependencies --yes --output /tmp/packages \
+              podman \
+              sysutils/podman-compose \
+              jq \
+              skopeo \
+              buildah \
+              trivy \
+              python3 \
+              devel/py-pyyaml \
+              appjail \
+              ocijail
+
+            # Create dated bundle in repo working dir (copyback picks it up)
+            BUNDLE="freebsd-${FREEBSD_RELEASE}-$(date +%Y%m%d).tar.gz"
+            tar czf "$BUNDLE" -C /tmp/packages .
+            echo "Created $BUNDLE ($(du -sh $BUNDLE | cut -f1))"
+
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d).tar.gz"
+          TAG="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d)"
+
+          gh release create "$TAG" \
+            --title "FreeBSD ${{ env.FREEBSD_RELEASE }} build tools $(date +%Y%m%d)" \
+            --notes "Pinned build tools bundle for FreeBSD ${{ env.FREEBSD_RELEASE }}.
+
+## Packages
+- podman
+- sysutils/podman-compose
+- jq / skopeo / buildah
+- trivy
+- python3 / devel/py-pyyaml
+- appjail
+- ocijail" \
+            "$BUNDLE"
