@@ -47,7 +47,7 @@ jobs:
               ocijail
 
             # Create dated bundle in repo working dir (copyback picks it up)
-            BUNDLE="freebsd-${FREEBSD_RELEASE}-$(date +%Y%m%d).tar.gz"
+            BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d).tar.gz"
             tar czf "$BUNDLE" -C /tmp/packages .
             echo "Created $BUNDLE ($(du -sh $BUNDLE | cut -f1))"
 
