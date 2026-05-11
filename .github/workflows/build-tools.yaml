@@ -51,6 +51,21 @@ jobs:
             tar czf "$BUNDLE" -C /tmp/packages .
             echo "Created $BUNDLE ($(du -sh $BUNDLE | cut -f1))"
 
+            # Screenshot bundle (chromium + selenium + scikit-image for CIT screenshot mode)
+            # Fetch with full dep tree, then strip packages already in the main bundle
+            mkdir -p /tmp/packages-screenshot-raw /tmp/packages-screenshot/All/Hashed
+            pkg fetch --dependencies --yes --output /tmp/packages-screenshot-raw \
+              chromium \
+              py311-selenium \
+              py311-scikit-image
+            for f in /tmp/packages-screenshot-raw/All/Hashed/*.pkg; do
+              [ -f "/tmp/packages/All/Hashed/$(basename $f)" ] || cp "$f" /tmp/packages-screenshot/All/Hashed/
+            done
+
+            SS_BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-screenshot-$(date +%Y%m%d).tar.gz"
+            tar czf "$SS_BUNDLE" -C /tmp/packages-screenshot .
+            echo "Created $SS_BUNDLE ($(du -sh $SS_BUNDLE | cut -f1))"
+
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -61,7 +76,15 @@ jobs:
           printf 'Pinned build tools bundle for FreeBSD %s.\n\n## Packages\n- podman\n- sysutils/podman-compose\n- jq / skopeo / buildah\n- trivy\n- python3 / devel/py-pyyaml\n- appjail\n- ocijail\n' \
             "${{ env.FREEBSD_RELEASE }}" > /tmp/notes.md
 
+          SS_BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-screenshot-$(date +%Y%m%d).tar.gz"
+
           gh release create "$TAG" \
             --title "FreeBSD ${{ env.FREEBSD_RELEASE }} build tools $(date +%Y%m%d)" \
             --notes-file /tmp/notes.md \
-            "$BUNDLE"
+            "$BUNDLE" \
+            "$SS_BUNDLE"
+
+          # Keep only the 3 most recent releases, delete older ones
+          gh release list --limit 100 --json tagName --jq '.[].tagName' \
+            | tail -n +4 \
+            | xargs -r -I{} gh release delete {} --yes --cleanup-tag
