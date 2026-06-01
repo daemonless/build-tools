@@ -66,6 +66,19 @@ jobs:
             tar czf "$SS_BUNDLE" -C /tmp/packages-screenshot .
             echo "Created $SS_BUNDLE ($(du -sh $SS_BUNDLE | cut -f1))"
 
+            # Render release notes here (pkg rquery only works inside the VM);
+            # release-notes.txt is copied back for the host's publish step.
+            get_ver() { V=$(pkg rquery '%v' "$1" 2>/dev/null); echo "${V:-?}"; }
+            sed \
+              -e "s/{{ release }}/${{ env.FREEBSD_RELEASE }}/g" \
+              -e "s/{{ podman_version }}/$(get_ver podman)/g" \
+              -e "s/{{ buildah_version }}/$(get_ver buildah)/g" \
+              -e "s/{{ trivy_version }}/$(get_ver trivy)/g" \
+              -e "s/{{ chromium_version }}/$(get_ver chromium)/g" \
+              -e "s/{{ selenium_version }}/$(get_ver py311-selenium)/g" \
+              -e "s/{{ scikit_version }}/$(get_ver py311-scikit-image)/g" \
+              .github/release-notes.md.j2 > release-notes.txt
+
       - name: Publish release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -73,14 +86,11 @@ jobs:
           BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d).tar.gz"
           TAG="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d)"
 
-          printf 'Pinned build tools bundle for FreeBSD %s.\n\n## Packages\n- podman\n- sysutils/podman-compose\n- jq / skopeo / buildah\n- trivy\n- python3 / devel/py-pyyaml\n- appjail\n- ocijail\n' \
-            "${{ env.FREEBSD_RELEASE }}" > /tmp/notes.md
-
           SS_BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-screenshot-$(date +%Y%m%d).tar.gz"
 
           gh release create "$TAG" \
             --title "FreeBSD ${{ env.FREEBSD_RELEASE }} build tools $(date +%Y%m%d)" \
-            --notes-file /tmp/notes.md \
+            --notes-file "${GITHUB_WORKSPACE}/release-notes.txt" \
             "$BUNDLE" \
             "$SS_BUNDLE"
 

@@ -1,0 +1,23 @@
+Pinned build-tools bundles for **FreeBSD {{ release }}** — tarballs of FreeBSD `.pkg` files (with full dependency trees) so [daemonless/dbuild](https://github.com/daemonless/dbuild) can install CI tooling without reaching `pkg.FreeBSD.org` at build time.
+
+## Assets
+
+### `freebsd-{{ release }}-*.tar.gz` — base bundle
+
+Core build tooling:
+
+- **podman** {{ podman_version }} + `sysutils/podman-compose`
+- **buildah** {{ buildah_version }} / **skopeo** / **jq**
+- **trivy** {{ trivy_version }} (image scanning)
+- **python3** + `devel/py-pyyaml`
+- **appjail** + **ocijail** (jail runtimes)
+
+### `freebsd-{{ release }}-screenshot-*.tar.gz` — screenshot add-on
+
+Extra packages for CIT `mode: screenshot`:
+
+- **chromium** {{ chromium_version }}
+- **py311-selenium** {{ selenium_version }}
+- **py311-scikit-image** {{ scikit_version }}
+
+> **Requires the base bundle.** The screenshot bundle is *incremental* — it ships only the packages **not** already in the base bundle, so install the base bundle first, then layer this on top.
