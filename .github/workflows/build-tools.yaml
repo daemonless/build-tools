@@ -51,6 +51,30 @@ jobs:
             tar czf "$BUNDLE" -C /tmp/packages .
             echo "Created $BUNDLE ($(du -sh $BUNDLE | cut -f1))"
 
+            # aarch64 main bundle — cross-fetched from this amd64 VM via an ABI
+            # override (no emulation needed). OSVERSION must be set explicitly
+            # when ABI is overridden. 1500000 = FreeBSD 15.0.
+            mkdir -p /tmp/packages-aarch64
+            XFETCH="-o ABI=FreeBSD:15:aarch64 -o OSVERSION=1500000"
+            pkg $XFETCH update -f
+            pkg $XFETCH fetch --dependencies --yes --output /tmp/packages-aarch64 \
+              podman \
+              sysutils/podman-compose \
+              jq \
+              skopeo \
+              buildah \
+              trivy \
+              python3 \
+              devel/py-pyyaml \
+              appjail \
+              ocijail
+
+            ARM_BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d)-aarch64.tar.gz"
+            tar czf "$ARM_BUNDLE" -C /tmp/packages-aarch64 .
+            echo "Created $ARM_BUNDLE ($(du -sh $ARM_BUNDLE | cut -f1))"
+            # NOTE: no aarch64 screenshot bundle — chromium is not built for
+            # FreeBSD:15:aarch64, so screenshot-mode CIT is amd64-only for now.
+
             # Screenshot bundle (chromium + selenium + scikit-image for CIT screenshot mode)
             # Fetch with full dep tree, then strip packages already in the main bundle
             mkdir -p /tmp/packages-screenshot-raw /tmp/packages-screenshot/All/Hashed
@@ -87,11 +111,13 @@ jobs:
           TAG="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d)"
 
           SS_BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-screenshot-$(date +%Y%m%d).tar.gz"
+          ARM_BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d)-aarch64.tar.gz"
 
           gh release create "$TAG" \
             --title "FreeBSD ${{ env.FREEBSD_RELEASE }} build tools $(date +%Y%m%d)" \
             --notes-file "${GITHUB_WORKSPACE}/release-notes.txt" \
             "$BUNDLE" \
+            "$ARM_BUNDLE" \
             "$SS_BUNDLE"
 
           # Keep only the 3 most recent releases, delete older ones
