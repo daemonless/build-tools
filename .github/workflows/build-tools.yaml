@@ -51,11 +51,12 @@ jobs:
             tar czf "$BUNDLE" -C /tmp/packages .
             echo "Created $BUNDLE ($(du -sh $BUNDLE | cut -f1))"
 
-            # aarch64 main bundle — cross-fetched from this amd64 VM via an ABI
-            # override (no emulation needed). OSVERSION must be set explicitly
-            # when ABI is overridden. 1500000 = FreeBSD 15.0.
-            mkdir -p /tmp/packages-aarch64
-            XFETCH="-o ABI=FreeBSD:15:aarch64 -o OSVERSION=1500000"
+            # aarch64 bundle: cross-fetch with an isolated pkg db; ABI + OSVERSION
+            # derived from the host so nothing is version-pinned.
+            AARCH64_ABI=$(pkg config ABI | sed 's/:[^:]*$/:aarch64/')
+            mkdir -p /tmp/aarch64-repo /tmp/aarch64-db /tmp/aarch64-cache /tmp/packages-aarch64
+            printf 'FreeBSD: { url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest", mirror_type: srv, signature_type: fingerprints, fingerprints: /usr/share/keys/pkg, enabled: yes }\n' > /tmp/aarch64-repo/FreeBSD.conf
+            XFETCH="-o ABI=$AARCH64_ABI -o OSVERSION=$(uname -K) -o REPOS_DIR=/tmp/aarch64-repo -o PKG_DBDIR=/tmp/aarch64-db -o PKG_CACHEDIR=/tmp/aarch64-cache -o ASSUME_ALWAYS_YES=yes"
             pkg $XFETCH update -f
             pkg $XFETCH fetch --dependencies --yes --output /tmp/packages-aarch64 \
               podman \
@@ -72,8 +73,7 @@ jobs:
             ARM_BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d)-aarch64.tar.gz"
             tar czf "$ARM_BUNDLE" -C /tmp/packages-aarch64 .
             echo "Created $ARM_BUNDLE ($(du -sh $ARM_BUNDLE | cut -f1))"
-            # NOTE: no aarch64 screenshot bundle — chromium is not built for
-            # FreeBSD:15:aarch64, so screenshot-mode CIT is amd64-only for now.
+            # No aarch64 screenshot bundle: chromium isn't built for aarch64.
 
             # Screenshot bundle (chromium + selenium + scikit-image for CIT screenshot mode)
             # Fetch with full dep tree, then strip packages already in the main bundle
