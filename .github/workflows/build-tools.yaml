@@ -6,7 +6,7 @@ on:
     - cron: '0 0 1 * *'  # Monthly on the 1st
 
 env:
-  FREEBSD_RELEASE: "15.0"
+  FREEBSD_RELEASE: "15.1"
 
 jobs:
   build:
