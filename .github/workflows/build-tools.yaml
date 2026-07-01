@@ -80,8 +80,8 @@ jobs:
             mkdir -p /tmp/packages-screenshot-raw /tmp/packages-screenshot/All/Hashed
             pkg fetch --dependencies --yes --output /tmp/packages-screenshot-raw \
               chromium \
-              py311-selenium \
-              py311-scikit-image
+              www/py-selenium \
+              graphics/py-scikit-image
             for f in /tmp/packages-screenshot-raw/All/Hashed/*.pkg; do
               [ -f "/tmp/packages/All/Hashed/$(basename $f)" ] || cp "$f" /tmp/packages-screenshot/All/Hashed/
             done
@@ -99,8 +99,8 @@ jobs:
               -e "s/{{ buildah_version }}/$(get_ver buildah)/g" \
               -e "s/{{ trivy_version }}/$(get_ver trivy)/g" \
               -e "s/{{ chromium_version }}/$(get_ver chromium)/g" \
-              -e "s/{{ selenium_version }}/$(get_ver py311-selenium)/g" \
-              -e "s/{{ scikit_version }}/$(get_ver py311-scikit-image)/g" \
+              -e "s/{{ selenium_version }}/$(get_ver www/py-selenium)/g" \
+              -e "s/{{ scikit_version }}/$(get_ver graphics/py-scikit-image)/g" \
               .github/release-notes.md.j2 > release-notes.txt
 
       - name: Publish release
