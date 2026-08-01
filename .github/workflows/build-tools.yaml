@@ -46,6 +46,23 @@ jobs:
               appjail \
               ocijail
 
+            # Verification function to ensure required packages were actually fetched
+            verify_pkgs() {
+              search_dir="$1"
+              shift
+              for pkg in "$@"; do
+                pkg_name=$(basename "$pkg")
+                clean_name=$(echo "$pkg_name" | sed 's/^py-//')
+                if ! find "$search_dir" -name "*${clean_name}*.pkg" | grep -q .; then
+                  echo "CRITICAL ERROR: Required package '$pkg' (matched by '*${clean_name}*.pkg') is missing from $search_dir!" >&2
+                  exit 1
+                fi
+              done
+            }
+
+            # Verify main bundle
+            verify_pkgs /tmp/packages podman podman-compose jq skopeo buildah trivy python3 pyyaml appjail ocijail
+
             # Create dated bundle in repo working dir (copyback picks it up)
             BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d).tar.gz"
             tar czf "$BUNDLE" -C /tmp/packages .
@@ -70,6 +87,9 @@ jobs:
               appjail \
               ocijail
 
+            # Verify aarch64 bundle
+            verify_pkgs /tmp/packages-aarch64 podman podman-compose jq skopeo buildah trivy python3 pyyaml appjail ocijail
+
             ARM_BUNDLE="freebsd-${{ env.FREEBSD_RELEASE }}-$(date +%Y%m%d)-aarch64.tar.gz"
             tar czf "$ARM_BUNDLE" -C /tmp/packages-aarch64 .
             echo "Created $ARM_BUNDLE ($(du -sh $ARM_BUNDLE | cut -f1))"
@@ -82,6 +102,10 @@ jobs:
               chromium \
               www/py-selenium \
               graphics/py-scikit-image
+
+            # Verify screenshot bundle contains chromium, selenium, scikit-image
+            verify_pkgs /tmp/packages-screenshot-raw chromium py-selenium py-scikit-image
+
             for f in /tmp/packages-screenshot-raw/All/Hashed/*.pkg; do
               [ -f "/tmp/packages/All/Hashed/$(basename $f)" ] || cp "$f" /tmp/packages-screenshot/All/Hashed/
             done
